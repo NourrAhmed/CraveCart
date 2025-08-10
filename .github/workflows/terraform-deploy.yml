@@ -31,10 +31,16 @@ jobs:
                 aws-region: eu-north-1
 
             - name: Terraform Init
-              run: terraform init Infrastructure/
+              run: |
+                cd /home/nour/CraveCart/Infrastructure
+                terraform init
 
             - name: Terraform Plan
-              run: terraform plan -out=tfplan Infrastructure/
+              run: |
+                cd /home/nour/CraveCart/Infrastructure
+                terraform plan -out=tfplan 
 
             - name: Terraform Apply
-              run: terraform apply -auto-approve tfplan Infrastructure/
+              run: |
+                cd /home/nour/CraveCart/Infrastructure 
+                terraform apply -auto-approve tfplan 
