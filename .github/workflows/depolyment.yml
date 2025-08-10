@@ -37,6 +37,6 @@ jobs:
                  docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-backend
                  docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend
                  cd /CraveCart/docker-compose
-                 docker-compose down
-                 docker-compose up -d
+                 docker compose down
+                 docker compose up -d
                  
