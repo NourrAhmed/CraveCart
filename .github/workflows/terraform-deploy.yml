@@ -32,15 +32,15 @@ jobs:
 
             - name: Terraform Init
               run: |
-                cd /home/nour/CraveCart/Infrastructure
+                cd Infrastructure
                 terraform init
 
             - name: Terraform Plan
               run: |
-                cd /home/nour/CraveCart/Infrastructure
+                cd Infrastructure
                 terraform plan -out=tfplan 
 
             - name: Terraform Apply
               run: |
-                cd /home/nour/CraveCart/Infrastructure 
+                cd Infrastructure 
                 terraform apply -auto-approve tfplan 
