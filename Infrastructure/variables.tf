@@ -1,5 +1,5 @@
 variable "region" {
-  default = "eu-central-1"
+  default = "eu-north-1"
 }
 variable "instance_ami" {
   default = "ami-02003f9f0fde924ea"
