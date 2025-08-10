@@ -2,7 +2,7 @@ variable "region" {
   default = "eu-north-1"
 }
 variable "instance_ami" {
-  default = "ami-02003f9f0fde924ea"
+  default = "ami-042b4708b1d05f512"
 }
 variable "instance_type" {
   default = "t2.micro"
