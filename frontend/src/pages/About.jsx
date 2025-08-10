@@ -13,7 +13,7 @@ const About = () => {
         <div className="bg-[#212121] p-6 rounded-lg text-white min-w-[250px] max-w-[400px]  shadow-md mb-6 ">
           <h2 className="font-bold text-2xl mb-4 ">Crave Cart.</h2>
           <p className="text-lg">
-             Cart is an online food ordering platform that lets you choose
+            Crave Cart is an online food ordering platform that lets you choose
             from a variety of restaurants with ease. Our goal is to make
             ordering as simple as possible, delivering your food right to your
             door with just a click. We offer a wide range of restaurant options
