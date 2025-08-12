@@ -88,10 +88,6 @@ resource "local_file" "CraveCart" {
   filename = "CraveCartKey.pem"
 }
 
-provider "aws" {
-  region = "us-east-1"
-}
-
 # KMS key for encryption
 resource "aws_kms_key" "mykey" {
   description             = "KMS key for Terraform state encryption"
