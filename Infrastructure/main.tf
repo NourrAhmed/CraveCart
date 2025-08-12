@@ -128,7 +128,7 @@ resource "aws_s3_bucket_versioning" "versioning" {
 
 # DynamoDB table for state locking
 resource "aws_dynamodb_table" "StateLock" {
-  name         = "stateLock"
+  name         = "cravecartstateLock"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
 
