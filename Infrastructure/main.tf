@@ -96,18 +96,19 @@ resource "aws_kms_key" "mykey" {
 
 # S3 bucket for storing Terraform state
 resource "aws_s3_bucket" "StateFileBucket" {
-  bucket = "state-bucket" 
+  bucket = "cravecart-state-bucket" 
+}
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.mykey.arn
-        sse_algorithm     = "aws:kms"
-      }
+resource "aws_s3_bucket_server_side_encryption_configuration" "StateFileBucket" {
+  bucket = aws_s3_bucket.StateFileBucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.mykey.arn
+      sse_algorithm     = "aws:kms"
     }
   }
 }
-
 # Block public access
 resource "aws_s3_bucket_public_access_block" "block" {
   bucket                  = aws_s3_bucket.StateFileBucket.id
