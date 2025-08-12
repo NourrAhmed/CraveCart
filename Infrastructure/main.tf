@@ -95,7 +95,7 @@ resource "aws_kms_key" "mykey" {
 }
 
 # S3 bucket for storing Terraform state
-resource "aws_s3_bucket" "StateFileBucket" {
+resource "aws_s3_bucket" "CraveCartStateFileBucket" {
   bucket = "cravecart-state-bucket" 
 }
 
@@ -127,7 +127,7 @@ resource "aws_s3_bucket_versioning" "versioning" {
 }
 
 # DynamoDB table for state locking
-resource "aws_dynamodb_table" "StateLock" {
+resource "aws_dynamodb_table" "CraveCartStateLock" {
   name         = "cravecartstateLock"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
