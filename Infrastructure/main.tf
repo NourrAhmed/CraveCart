@@ -87,3 +87,56 @@ resource "local_file" "CraveCart" {
   content  = tls_private_key.rsa.private_key_pem
   filename = "CraveCartKey.pem"
 }
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+# KMS key for encryption
+resource "aws_kms_key" "mykey" {
+  description             = "KMS key for Terraform state encryption"
+  deletion_window_in_days = 10
+}
+
+# S3 bucket for storing Terraform state
+resource "aws_s3_bucket" "StateFileBucket" {
+  bucket = "state-bucket" 
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        kms_master_key_id = aws_kms_key.mykey.arn
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
+}
+
+# Block public access
+resource "aws_s3_bucket_public_access_block" "block" {
+  bucket                  = aws_s3_bucket.StateFileBucket.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Enable versioning
+resource "aws_s3_bucket_versioning" "versioning" {
+  bucket = aws_s3_bucket.StateFileBucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# DynamoDB table for state locking
+resource "aws_dynamodb_table" "StateLock" {
+  name         = "stateLock"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+}
