@@ -60,3 +60,7 @@ coverage/
 Thumbs.db 
 
 .terraform/
+<<<<<<< HEAD
+=======
+.terraform.lock.hcl
+>>>>>>> 093ea90 (Remove Terraform cache and ignore it)
