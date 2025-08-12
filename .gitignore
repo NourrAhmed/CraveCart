@@ -59,10 +59,10 @@ coverage/
 .DS_Store
 Thumbs.db 
 
+# Terraform
 .terraform/
-<<<<<<< HEAD
-=======
-.terraform.lock.hcl.terraform/
-.terraform/
->>>>>>> 3b646ea (Ignore .terraform folder)
-.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.tfstate.lock.info
