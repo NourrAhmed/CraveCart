@@ -100,7 +100,7 @@ resource "aws_s3_bucket" "CraveCartStateFileBucket" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "StateFileBucket" {
-  bucket = aws_s3_bucket.StateFileBucket.id
+  bucket = aws_s3_bucket.CraveCartStateFileBucket.id
 
   rule {
     apply_server_side_encryption_by_default {
