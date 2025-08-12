@@ -60,3 +60,9 @@ coverage/
 Thumbs.db 
 
 .terraform/
+<<<<<<< HEAD
+=======
+.terraform.lock.hcl.terraform/
+.terraform/
+>>>>>>> 3b646ea (Ignore .terraform folder)
+.terraform/
