@@ -7,7 +7,7 @@ resource "aws_instance" "CraveCart_blue" {
   ami           = var.instance_ami
   instance_type = var.instance_type
   tags = { "Name" = "CraveCart-Blue" }
-  security_groups = [aws_security_group.sg.name]
+  vpc_security_group_ids = [aws_security_group.sg.id]
   key_name        = aws_key_pair.CraveCart_KeyPair.key_name
   subnet_id     = aws_subnet.public_subnet_a.id
   user_data       = <<-EOF
