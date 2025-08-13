@@ -9,6 +9,7 @@ resource "aws_instance" "CraveCart_blue" {
   tags = { "Name" = "CraveCart-Blue" }
   security_groups = [aws_security_group.sg.name]
   key_name        = aws_key_pair.CraveCart_KeyPair.key_name
+  subnet_id     = aws_subnet.public_subnet_a.id
   user_data       = <<-EOF
                #!/bin/bash
                 sudo apt update -y
@@ -31,6 +32,7 @@ resource "aws_instance" "CraveCart_green" {
   tags = { "Name" = "CraveCart-Green" }
   security_groups = [aws_security_group.sg.name]
   key_name        = aws_key_pair.CraveCart_KeyPair.key_name
+  subnet_id     = aws_subnet.public_subnet_b.id
   user_data       = <<-EOF
                #!/bin/bash
                 sudo apt update -y
@@ -49,6 +51,7 @@ resource "aws_instance" "CraveCart_green" {
 
 resource "aws_security_group" "sg" {
   name = "CraveCart security group"
+  vpc_id = aws_vpc.main.id
   egress {
     description = "Allow all outbound traffic"
     from_port   = 0
@@ -152,6 +155,16 @@ resource "aws_lb_target_group" "blue" {
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
 }
 
 resource "aws_lb_target_group" "green" {
@@ -182,6 +195,25 @@ resource "aws_lb_target_group_attachment" "green_instance" {
   target_group_arn = aws_lb_target_group.green.arn
   target_id        = aws_instance.CraveCart_green.id
   port             = 80
+}
+
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+}
+
+resource "aws_route_table_association" "public_a" {
+  subnet_id      = aws_subnet.public_subnet_a.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+resource "aws_route_table_association" "public_b" {
+  subnet_id      = aws_subnet.public_subnet_b.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
 # KMS key for encryption
