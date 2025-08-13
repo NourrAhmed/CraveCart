@@ -133,7 +133,10 @@ resource "aws_lb" "app_lb" {
   name               = "cravecart-lb"
   internal           = false
   load_balancer_type = "application"
-  subnets            = aws_subnet.public.*.id
+  subnets            = [
+    aws_subnet.public_subnet_a.id, # AZ1
+    aws_subnet.public_subnet_b.id  # AZ2
+  ]
   security_groups    = [aws_security_group.sg.id]
 }
 
