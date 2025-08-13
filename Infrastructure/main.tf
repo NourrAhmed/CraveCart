@@ -108,6 +108,26 @@ resource "local_file" "CraveCart" {
   content  = tls_private_key.rsa.private_key_pem
   filename = "CraveCartKey.pem"
 }
+# Create VPC
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+}
+
+# Create public subnets
+resource "aws_subnet" "public" {
+  count                   = 2
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
+  map_public_ip_on_launch = true
+}
+
+# Create Internet Gateway
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
+}
+
 
 resource "aws_lb" "app_lb" {
   name               = "cravecart-lb"
