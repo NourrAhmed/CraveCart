@@ -2,12 +2,11 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_instance" "CraveCart" {
+
+resource "aws_instance" "CraveCart_blue" {
   ami           = var.instance_ami
   instance_type = var.instance_type
-  tags = {
-    "Name" = "EC2Instance"
-  }
+  tags = { "Name" = "CraveCart-Blue" }
   security_groups = [aws_security_group.sg.name]
   key_name        = aws_key_pair.CraveCart_KeyPair.key_name
   user_data       = <<-EOF
@@ -26,22 +25,26 @@ resource "aws_instance" "CraveCart" {
               EOF
 }
 
-resource "aws_instance" "CraveCart_blue" {
-  ami           = var.instance_ami
-  instance_type = var.instance_type
-  tags = { "Name" = "CraveCart-Blue" }
-  security_groups = [aws_security_group.sg.name]
-  key_name        = aws_key_pair.CraveCart_KeyPair.key_name
-  user_data       = file("user_data_blue.sh")
-}
-
 resource "aws_instance" "CraveCart_green" {
   ami           = var.instance_ami
   instance_type = var.instance_type
   tags = { "Name" = "CraveCart-Green" }
   security_groups = [aws_security_group.sg.name]
   key_name        = aws_key_pair.CraveCart_KeyPair.key_name
-  user_data       = file("user_data_green.sh")
+  user_data       = <<-EOF
+               #!/bin/bash
+                sudo apt update -y
+                sudo apt install docker.io -y
+                sudo apt install docker-compose -y
+                sudo apt install git -y
+                sudo systemctl start docker
+                sudo usermod -aG docker ubuntu
+                sleep 30
+               
+                git clone https://github.com/NourrAhmed/CraveCart.git 
+                cd CraveCart
+                sudo docker-compose up -d
+              EOF
 }
 
 resource "aws_security_group" "sg" {
