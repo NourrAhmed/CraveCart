@@ -48,15 +48,15 @@ jobs:
       - name: Get Blue-Green outputs
         run: |
           cd Infrastructure
-          terraform output -raw blue_ip > blue_ip.txt
-          terraform output -raw green_ip > green_ip.txt
-          terraform output -raw active_env > active_env.txt
+          terraform output -raw blue_ip > ../blue_ip.txt
+          terraform output -raw green_ip > ../green_ip.txt
+          terraform output -raw active_env > ../active_env.txt
 
       - name: Upload Blue-Green outputs
         uses: actions/upload-artifact@v4
         with:
           name: bg-info
           path: |
-            Infrastructure/blue_ip.txt
-            Infrastructure/green_ip.txt
-            Infrastructure/active_env.txt
+            blue_ip.txt
+            green_ip.txt
+            active_env.txt
