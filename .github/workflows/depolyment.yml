@@ -29,11 +29,11 @@ jobs:
          ACTIVE=$(<active_env.txt)
 
          if [ "$ACTIVE" = "blue" ]; then
-         echo "TARGET_ENV=green" >> $GITHUB_ENV
-         echo "TARGET_IP=$GREEN_IP" >> $GITHUB_ENV
+          echo "TARGET_ENV=green" >> $GITHUB_ENV
+          echo "TARGET_IP=$GREEN_IP" >> $GITHUB_ENV
          else
-         echo "TARGET_ENV=blue" >> $GITHUB_ENV
-         echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
+          echo "TARGET_ENV=blue" >> $GITHUB_ENV
+          echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
          fi
 
       - name: Log into Docker Hub
