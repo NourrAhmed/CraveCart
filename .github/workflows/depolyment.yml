@@ -18,7 +18,7 @@ jobs:
       - name: Download Blue-Green artifact
         uses: actions/download-artifact@v4
         with:
-          name: blue-green-info
+          name: bg-info
           path: .
 
       - name: Determine target environment

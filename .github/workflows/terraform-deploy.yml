@@ -55,7 +55,7 @@ jobs:
       - name: Upload Blue-Green outputs
         uses: actions/upload-artifact@v4
         with:
-          name: blue-green-info
+          name: bg-info
           path: |
             Infrastructure/blue_ip.txt
             Infrastructure/green_ip.txt
