@@ -24,20 +24,17 @@ jobs:
       - name: Determine target environment
         id: target
         run: |
-          BLUE_IP=$(cat blue_ip.txt)
-          GREEN_IP=$(cat green_ip.txt)
-          ACTIVE=$(cat active_env.txt)
+         BLUE_IP=$(<blue_ip.txt)
+         GREEN_IP=$(<green_ip.txt)
+         ACTIVE=$(<active_env.txt)
 
-          if [ "$ACTIVE" = "blue" ]; then
-            TARGET_ENV="green"
-            TARGET_IP="$GREEN_IP"
-          else
-            TARGET_ENV="blue"
-            TARGET_IP="$BLUE_IP"
-          fi
-
-          echo "TARGET_ENV=$TARGET_ENV" >> $GITHUB_ENV
-          echo "TARGET_IP=$TARGET_IP" >> $GITHUB_ENV
+         if [ "$ACTIVE" = "blue" ]; then
+         echo "TARGET_ENV=green" >> $GITHUB_ENV
+         echo "TARGET_IP=$GREEN_IP" >> $GITHUB_ENV
+         else
+         echo "TARGET_ENV=blue" >> $GITHUB_ENV
+         echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
+         fi
 
       - name: Log into Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
