@@ -24,9 +24,9 @@ jobs:
       - name: Determine target environment
         id: target
         run: |
-         BLUE_IP=$(<Infrastructure/blue_ip.txt)
-         GREEN_IP=$(<Infrastructure/green_ip.txt)
-         ACTIVE=$(<Infrastructure/active_env.txt)
+         BLUE_IP=$(<blue_ip.txt)
+         GREEN_IP=$(<green_ip.txt)
+         ACTIVE=$(<active_env.txt)
 
          if [ "$ACTIVE" = "blue" ]; then
           echo "TARGET_ENV=green" >> $GITHUB_ENV
