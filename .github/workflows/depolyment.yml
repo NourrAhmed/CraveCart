@@ -19,22 +19,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Configure AWS CLI
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region eu-north-1
+
+      - name: Get EC2 IPs
+        id: get-ips
+        run: |
+          BLUE_IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=CraveCart-Blue" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].PublicIpAddress" --output text)
+
+          GREEN_IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=CraveCart-Green" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].PublicIpAddress" --output text)
+
+          ACTIVE=$(aws ssm get-parameter --name "/cravecart/active_env" --query "Parameter.Value" --output text)
+
+          echo "BLUE_IP=$BLUE_IP" >> $GITHUB_ENV
+          echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
+          echo "ACTIVE=$ACTIVE" >> $GITHUB_ENV
+
       - name: Determine target environment
         run: |
-          BLUE_IP="${{ github.event.workflow_run.outputs.blue_ip }}"
-          GREEN_IP="${{ github.event.workflow_run.outputs.green_ip }}"
-          ACTIVE="${{ github.event.workflow_run.outputs.active_env }}"
-
-          echo "Blue IP: $BLUE_IP"
-          echo "Green IP: $GREEN_IP"
-          echo "Active: $ACTIVE"
-
-          if [ "$ACTIVE" = "blue" ]; then
+          if [ "${{ env.ACTIVE }}" = "blue" ]; then
             echo "TARGET_ENV=green" >> $GITHUB_ENV
-            echo "TARGET_IP=$GREEN_IP" >> $GITHUB_ENV
+            echo "TARGET_IP=${{ env.GREEN_IP }}" >> $GITHUB_ENV
           else
             echo "TARGET_ENV=blue" >> $GITHUB_ENV
-            echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
+            echo "TARGET_IP=${{ env.BLUE_IP }}" >> $GITHUB_ENV
           fi
 
       - name: Log into Docker Hub

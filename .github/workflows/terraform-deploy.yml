@@ -1,4 +1,4 @@
-name: Deploy Infrastructure with Terraform
+name: Deploy Infrastructure with Terraform 
 
 on: 
   push:
@@ -10,11 +10,6 @@ jobs:
     name: Terraform Apply
     runs-on: ubuntu-latest
 
-    outputs:   
-      blue_ip: ${{ steps.get-outputs.outputs.blue_ip }}
-      green_ip: ${{ steps.get-outputs.outputs.green_ip }}
-      active_env: ${{ steps.get-outputs.outputs.active_env }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -22,7 +17,7 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.12.2
+          terraform_version: 1.9.8   
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,11 +34,3 @@ jobs:
 
       - name: Terraform Apply
         run: cd Infrastructure && terraform apply -auto-approve tfplan 
-
-      - name: Get Blue-Green outputs
-        id: get-outputs   
-        run: |
-          cd Infrastructure
-          echo "blue_ip=$(terraform output -raw blue_ip)" >> $GITHUB_OUTPUT
-          echo "green_ip=$(terraform output -raw green_ip)" >> $GITHUB_OUTPUT
-          echo "active_env=$(terraform output -raw active_env)" >> $GITHUB_OUTPUT
