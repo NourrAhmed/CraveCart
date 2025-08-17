@@ -19,18 +19,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download Blue-Green artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: bg-info
-          path: .           
-
       - name: Determine target environment
-        id: target
         run: |
-          BLUE_IP=$(<blue_ip.txt)
-          GREEN_IP=$(<green_ip.txt)
-          ACTIVE=$(<active_env.txt)
+          BLUE_IP="${{ github.event.workflow_run.outputs.blue_ip }}"
+          GREEN_IP="${{ github.event.workflow_run.outputs.green_ip }}"
+          ACTIVE="${{ github.event.workflow_run.outputs.active_env }}"
+
+          echo "Blue IP: $BLUE_IP"
+          echo "Green IP: $GREEN_IP"
+          echo "Active: $ACTIVE"
 
           if [ "$ACTIVE" = "blue" ]; then
             echo "TARGET_ENV=green" >> $GITHUB_ENV

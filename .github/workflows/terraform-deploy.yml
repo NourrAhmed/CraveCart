@@ -10,9 +10,10 @@ jobs:
     name: Terraform Apply
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      id-token: write
+    outputs:   
+      blue_ip: ${{ steps.get-outputs.outputs.blue_ip }}
+      green_ip: ${{ steps.get-outputs.outputs.green_ip }}
+      active_env: ${{ steps.get-outputs.outputs.active_env }}
 
     steps:
       - name: Checkout repository
@@ -31,31 +32,18 @@ jobs:
           aws-region: eu-north-1
 
       - name: Terraform Init
-        run: |
-          cd Infrastructure
-          terraform init
+        run: cd Infrastructure && terraform init
 
       - name: Terraform Plan
-        run: |
-          cd Infrastructure
-          terraform plan -out=tfplan 
+        run: cd Infrastructure && terraform plan -out=tfplan 
 
       - name: Terraform Apply
-        run: |
-          cd Infrastructure 
-          terraform apply -auto-approve tfplan 
+        run: cd Infrastructure && terraform apply -auto-approve tfplan 
 
       - name: Get Blue-Green outputs
+        id: get-outputs   
         run: |
-         terraform output -raw blue_ip > blue_ip.txt
-         terraform output -raw green_ip > green_ip.txt
-         terraform output -raw active_env > active_env.txt
-
-      - name: Upload Blue-Green outputs
-        uses: actions/upload-artifact@v4
-        with:
-           name: bg-info
-           path: |
-            blue_ip.txt
-            green_ip.txt
-            active_env.txt
+          cd Infrastructure
+          echo "blue_ip=$(terraform output -raw blue_ip)" >> $GITHUB_OUTPUT
+          echo "green_ip=$(terraform output -raw green_ip)" >> $GITHUB_OUTPUT
+          echo "active_env=$(terraform output -raw active_env)" >> $GITHUB_OUTPUT
