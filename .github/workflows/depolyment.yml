@@ -36,7 +36,9 @@ jobs:
             --filters "Name=tag:Name,Values=CraveCart-Green" "Name=instance-state-name,Values=running" \
             --query "Reservations[].Instances[].PublicIpAddress" --output text)
 
-          ACTIVE=$(aws ssm get-parameter --name "/cravecart/active_env" --query "Parameter.Value" --output text)
+          
+          ACTIVE=$(aws ssm get-parameter --name "/cravecart/active_env" --query "Parameter.Value" --output text 2>/dev/null || echo "blue")
+
 
           echo "BLUE_IP=$BLUE_IP" >> $GITHUB_ENV
           echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
