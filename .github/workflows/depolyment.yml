@@ -6,6 +6,10 @@ on:
     types:
       - completed
 
+permissions:           
+  actions: read
+  contents: read
+
 jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -19,9 +23,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bg-info
-          path: .
-          run-id: ${{ github.event.workflow_run.id }}
-          repository: ${{ github.repository }}
+          path: .           
 
       - name: Determine target environment
         id: target
