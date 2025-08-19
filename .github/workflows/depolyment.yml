@@ -32,6 +32,8 @@ jobs:
         with:
           name: ec2-ssh-pem
           path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Export PEM as env var
         run: |
@@ -46,6 +48,8 @@ jobs:
         with:
           name: tf-outputs
           path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Parse outputs
         id: outputs
