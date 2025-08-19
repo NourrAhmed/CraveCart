@@ -60,27 +60,27 @@ jobs:
             echo "TARGET_IP=${{ env.BLUE_IP }}" >> $GITHUB_ENV
           fi
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: ec2-ssh-pem
-          path: .
+      #- uses: actions/download-artifact@v4
+        #with:
+          #name: ec2-ssh-pem
+          #path: .
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: tf-outputs
-          path: .
+      #- uses: actions/download-artifact@v4
+        #with:
+          #name: tf-outputs
+          #path: .
 
-      - name: Parse outputs
-        id: parse
-        run: |
-          IP=$(jq -r '.instance_public_ip.value' tf-outputs.json)
-          echo "ip=$IP" >> $GITHUB_OUTPUT
+      #- name: Parse outputs
+       # id: parse
+        #run: |
+         # IP=$(jq -r '.instance_public_ip.value' tf-outputs.json)
+          #echo "ip=$IP" >> $GITHUB_OUTPUT
 
-      - name: Fix permissions & known_hosts
-        run: |
-         PEM_FILE=$(ls -1 *.pem | head -n1)
-         chmod 600 "$PEM_FILE"
-         ssh-keyscan -H ${{ env.TARGET_IP }} >> ~/.ssh/known_hosts
+      #- name: Fix permissions & known_hosts
+       # run: |
+        # PEM_FILE=$(ls -1 *.pem | head -n1)
+        # chmod 600 "$PEM_FILE"
+         #ssh-keyscan -H ${{ env.TARGET_IP }} >> ~/.ssh/known_hosts
       #  Log into Docker Hub
       - name: Log into Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
@@ -97,26 +97,26 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA} ./backend
           docker push ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
  
-      - name: Locate PEM file
-        id: pem
-        run: echo "pem_file=$(realpath CraveCartKey.pem)" >> $GITHUB_OUTPUT
+      #- name: Locate PEM file
+       # id: pem
+        #run: echo "pem_file=$(realpath CraveCartKey.pem)" >> $GITHUB_OUTPUT
           
 
       #  Deploy to inactive environment via SSH
-      - name: Deploy to inactive environment
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ env.TARGET_IP }}
-          username: ${{ secrets.EC2_USER }}
-          key_path: ${{ steps.pem.outputs.pem_file }}
-          script: |
-            cd /home/ubuntu/CraveCart
-            git pull
-            docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
-            docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend:${GITHUB_SHA}
-            docker compose down
-            docker compose up -d
-          debug: true
+      #- name: Deploy to inactive environment
+        #uses: appleboy/ssh-action@v1.0.0
+        #with:
+          #host: ${{ env.TARGET_IP }}
+          #username: ${{ secrets.EC2_USER }}
+          #key_path: ${{ steps.pem.outputs.pem_file }}
+          #script: |
+          #  cd /home/ubuntu/CraveCart
+          #  git pull
+          #  docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
+          #  docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend:${GITHUB_SHA}
+          #  docker compose down
+          #  docker compose up -d
+         # debug: true
 
       # Switch traffic to new environment (update Terraform active_env)
       - name: Switch traffic to new environment
