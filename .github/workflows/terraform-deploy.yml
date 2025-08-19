@@ -39,18 +39,6 @@ jobs:
         run: |
          terraform -chdir=Infrastructure/ output -json > tf-outputs.json
 
-      - name: Locate PEM file path
-        id: pem
-        run: |
-          PEM_PATH=$(jq -r '.pemFile.value' tf-outputs.json)
-          echo "pemFile=$PEM_PATH" >> $GITHUB_OUTPUT
-
-      - name: Copy PEM file
-        run: |
-          PEM_PATH=$(jq -r '.pemFile.value' tf-outputs.json)
-          echo "PEM_PATH=$PEM_PATH"
-          # Copy it to Infrastructure/ so upload step works
-          cp "$PEM_PATH" Infrastructure/CraveCartKey.pem
 
       - name: Upload PEM artifact
         uses: actions/upload-artifact@v4
