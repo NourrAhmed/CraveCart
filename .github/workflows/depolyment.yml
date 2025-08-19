@@ -60,6 +60,13 @@ jobs:
             echo "TARGET_IP=${{ env.BLUE_IP }}" >> $GITHUB_ENV
           fi
 
+      - name: Download Terraform state
+        uses: actions/download-artifact@v4
+        with:
+         name: tfstate
+         path: Infrastructure
+
+
       #- uses: actions/download-artifact@v4
         #with:
           #name: ec2-ssh-pem
