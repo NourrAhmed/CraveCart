@@ -118,6 +118,10 @@ jobs:
           #  docker compose up -d
          # debug: true
 
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+         terraform_version: 1.9.8
       # Switch traffic to new environment (update Terraform active_env)
       - name: Switch traffic to new environment
         run: |
