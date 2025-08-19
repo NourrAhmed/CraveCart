@@ -19,6 +19,6 @@ output "active_env" {
   value = var.active_env
 }
 output "pemFile"{
-  value = local_file.CraveCart.CraveCartKey.pem
+  value = "CraveCartKey.pem"
   sensitive = true
 }
