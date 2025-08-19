@@ -67,4 +67,4 @@ Thumbs.db
 *.tfvars
 .terraform.tfstate.lock.info
 
-*.pem
+
