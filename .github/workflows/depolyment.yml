@@ -16,40 +16,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      
-      #  Checkout repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
 
-      #  Configure AWS CLI
-      - name: Configure AWS CLI
+      # Download PEM file and set as env var
+      - name: Download PEM
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-ssh-pem
+          path: .
+
+      - name: Export PEM as env var
         run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set default.region eu-north-1
+          echo "PRIVATE_KEY<<EOF" >> $GITHUB_ENV
+          cat CraveCartKey.pem >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          chmod 600 CraveCartKey.pem
 
-      #  Get EC2 IPs and active environment
-      - name: Get EC2 IPs
-        id: get-ips
+      # Download Terraform outputs
+      - name: Download Terraform outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: tf-outputs
+          path: .
+
+      - name: Parse outputs
+        id: outputs
         run: |
-          BLUE_IP=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=CraveCart-Blue" "Name=instance-state-name,Values=running" \
-            --query "Reservations[].Instances[].PublicIpAddress" --output text)
-
-          GREEN_IP=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=CraveCart-Green" "Name=instance-state-name,Values=running" \
-            --query "Reservations[].Instances[].PublicIpAddress" --output text)
-
-          # SSM parameter fallback to "blue" if not created yet
-          ACTIVE=$(aws ssm get-parameter --name "/cravecart/active_env" --query "Parameter.Value" --output text 2>/dev/null || echo "blue")
+          BLUE_IP=$(jq -r .blue_ip.value tf-outputs.json)
+          GREEN_IP=$(jq -r .green_ip.value tf-outputs.json)
+          ACTIVE=$(jq -r .active_env.value tf-outputs.json)
 
           echo "BLUE_IP=$BLUE_IP" >> $GITHUB_ENV
           echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
           echo "ACTIVE=$ACTIVE" >> $GITHUB_ENV
 
-      #  Determine target environment
       - name: Determine target environment
         run: |
           if [ "${{ env.ACTIVE }}" = "blue" ]; then
@@ -60,82 +68,23 @@ jobs:
             echo "TARGET_IP=${{ env.BLUE_IP }}" >> $GITHUB_ENV
           fi
 
-      - name: Download Terraform state
-        uses: actions/download-artifact@v4
+      - name: Deploy to inactive environment
+        uses: appleboy/ssh-action@v1.0.0
         with:
-         name: tfstate
-         path: Infrastructure
+          host: ${{ env.TARGET_IP }}
+          username: ubuntu
+          key: ${{ env.PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/CraveCart
+            git pull
+            docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
+            docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend:${GITHUB_SHA}
+            docker compose down
+            docker compose up -d
+          debug: true
 
-
-      #- uses: actions/download-artifact@v4
-        #with:
-          #name: ec2-ssh-pem
-          #path: .
-
-      #- uses: actions/download-artifact@v4
-        #with:
-          #name: tf-outputs
-          #path: .
-
-      #- name: Parse outputs
-       # id: parse
-        #run: |
-         # IP=$(jq -r '.instance_public_ip.value' tf-outputs.json)
-          #echo "ip=$IP" >> $GITHUB_OUTPUT
-
-      #- name: Fix permissions & known_hosts
-       # run: |
-        # PEM_FILE=$(ls -1 *.pem | head -n1)
-        # chmod 600 "$PEM_FILE"
-         #ssh-keyscan -H ${{ env.TARGET_IP }} >> ~/.ssh/known_hosts
-      #  Log into Docker Hub
-      - name: Log into Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-      #  Build and push frontend Docker image
-      - name: Build and push frontend Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend:${GITHUB_SHA} ./frontend
-          docker push ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend:${GITHUB_SHA}
-
-      #  Build and push backend Docker image
-      - name: Build and push backend Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA} ./backend
-          docker push ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
- 
-      #- name: Locate PEM file
-       # id: pem
-        #run: echo "pem_file=$(realpath CraveCartKey.pem)" >> $GITHUB_OUTPUT
-          
-
-      #  Deploy to inactive environment via SSH
-      #- name: Deploy to inactive environment
-        #uses: appleboy/ssh-action@v1.0.0
-        #with:
-          #host: ${{ env.TARGET_IP }}
-          #username: ${{ secrets.EC2_USER }}
-          #key_path: ${{ steps.pem.outputs.pem_file }}
-          #script: |
-          #  cd /home/ubuntu/CraveCart
-          #  git pull
-          #  docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
-          #  docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend:${GITHUB_SHA}
-          #  docker compose down
-          #  docker compose up -d
-         # debug: true
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-         terraform_version: 1.9.8
-      # Switch traffic to new environment (update Terraform active_env)
       - name: Switch traffic to new environment
         run: |
           cd Infrastructure
-          terraform init
+          terraform init -input=false
           terraform apply -auto-approve -var="active_env=${{ env.TARGET_ENV }}"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: eu-north-1

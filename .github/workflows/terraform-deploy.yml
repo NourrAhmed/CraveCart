@@ -1,4 +1,4 @@
-name: Deploy Infrastructure with Terraform 
+name: Deploy Infrastructure with Terraform
 
 on: 
   push:
@@ -35,17 +35,8 @@ jobs:
       - name: Terraform Apply
         run: cd Infrastructure && terraform apply -auto-approve tfplan 
 
-      - name: Upload Terraform state
-        uses: actions/upload-artifact@v4
-        with:
-         name: tfstate
-         path: Infrastructure/terraform.tfstate
-
-
-      - name: capture output
-        run: |
-         terraform -chdir=Infrastructure/ output -json > tf-outputs.json
-
+      - name: Capture outputs
+        run: terraform -chdir=Infrastructure/ output -json > tf-outputs.json
 
       - name: Upload PEM artifact
         uses: actions/upload-artifact@v4
