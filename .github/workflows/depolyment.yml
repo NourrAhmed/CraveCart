@@ -16,9 +16,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      
       #  Checkout repository
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ec2-ssh-pem
+          path: .
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tf-outputs
+          path: .
+
+      - name: Parse outputs
+        id: parse
+        run: |
+          IP=$(jq -r '.instance_public_ip.value' tf-outputs.json)
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+
+      - name: Fix permissions & known_hosts
+        run: |
+          PEM_FILE=$(ls -1 *.pem | head -n1)
+          chmod 600 "$PEM_FILE"
+          ssh-keyscan -H ${{ steps.parse.outputs.ip }} >> ~/.ssh/known_hosts
 
       #  Configure AWS CLI
       - name: Configure AWS CLI
@@ -72,6 +95,11 @@ jobs:
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA} ./backend
           docker push ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
+ 
+      - name: Locate PEM file
+        id: pem
+        run: echo "pem_file=$(ls -1 *.pem | head -n1)" >> $GITHUB_OUTPUT
+          
 
       #  Deploy to inactive environment via SSH
       - name: Deploy to inactive environment
@@ -79,7 +107,7 @@ jobs:
         with:
           host: ${{ env.TARGET_IP }}
           username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          key_path: ${{ steps.pem.outputs.pem_file }}
           script: |
             cd /home/ubuntu/CraveCart
             git pull

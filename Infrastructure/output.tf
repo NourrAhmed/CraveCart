@@ -18,3 +18,7 @@ output "green_ip" {
 output "active_env" {
   value = var.active_env
 }
+output "pemFile"{
+  value = local_file.CraveCart.CraveCartKey.pem
+  sensitive = true
+}

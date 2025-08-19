@@ -34,3 +34,27 @@ jobs:
 
       - name: Terraform Apply
         run: cd Infrastructure && terraform apply -auto-approve tfplan 
+
+      - name: capture output
+        run: |
+         terraform -chdir=Infrastructure/ output -json > tf-outputs.json
+
+      - name: Locate PEM file path
+        id: pem
+        run: |
+          PEM_PATH=$(jq -r '.pemFile.value' tf-outputs.json)
+          echo "pemFile=$PEM_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload PEM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ec2-ssh-pem
+          path: ${{ steps.pem.outputs.pemFile }}
+          if-no-files-found: error
+          retention-days: 1  
+
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: tf-outputs
+          path: tf-outputs.json
