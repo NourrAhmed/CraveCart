@@ -78,13 +78,19 @@ jobs:
           host: ${{ env.TARGET_IP }}
           username: ubuntu
           key: ${{ env.PRIVATE_KEY }}
+          envs: GITHUB_SHA
           script: |
-            cd /home/ubuntu/CraveCart
+            cd /home/ubuntu/CraveCart || cd /root/CraveCart
+
+           
+            git config --global --add safe.directory $(pwd)
+            git fetch --all
+            git reset --hard origin/main
             git pull
             docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
             docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend:${GITHUB_SHA}
-            docker compose down
-            docker compose up -d
+            docker-compose down
+            docker-compose up -d
           debug: true
 
       - name: Switch traffic to new environment
