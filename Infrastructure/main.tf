@@ -20,6 +20,7 @@ resource "aws_instance" "CraveCart_blue" {
                 sudo usermod -aG docker ubuntu
                 sleep 30
                
+                cd /home/ubuntu
                 git clone https://github.com/NourrAhmed/CraveCart.git 
                 cd CraveCart
                 sudo docker-compose up -d
@@ -43,6 +44,7 @@ resource "aws_instance" "CraveCart_green" {
                 sudo usermod -aG docker ubuntu
                 sleep 30
                
+                cd /home/ubuntu
                 git clone https://github.com/NourrAhmed/CraveCart.git 
                 cd CraveCart
                 sudo docker-compose up -d
