@@ -33,8 +33,10 @@ jobs:
 
       - name: Export PEM as file
         run: |
-          printf "%s" "${{ secrets.EC2_PEM_KEY }}" > CraveCartKey.pem
-          chmod 600 CraveCartKey.pem
+         cat << 'EOF' > CraveCartKey.pem
+         ${{ secrets.EC2_PEM_KEY }}
+         EOF
+         chmod 600 CraveCartKey.pem
 
 
       # Download Terraform outputs
