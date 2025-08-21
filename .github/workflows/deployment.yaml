@@ -33,8 +33,9 @@ jobs:
 
       - name: Export PEM as file
         run: |
-         echo "${{ secrets.EC2_PEM_KEY }}" > CraveCartKey.pem
-         chmod 600 CraveCartKey.pem
+          printf "%s" "${{ secrets.EC2_PEM_KEY }}" > CraveCartKey.pem
+          chmod 600 CraveCartKey.pem
+
 
       # Download Terraform outputs
       - name: Download Terraform outputs
