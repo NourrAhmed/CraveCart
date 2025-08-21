@@ -1,0 +1,29 @@
+---
+- name: Deploy CraveCart App
+  hosts: target
+  become: true
+  tasks:
+    - name: Ensure Git is installed
+      apt:
+        name: git
+        state: present
+        update_cache: yes
+
+    - name: Clone or update repo
+      git:
+        repo: "https://github.com/nourahmed/CraveCart.git"
+        dest: /home/ubuntu/CraveCart
+        version: main
+        force: yes
+
+    - name: Pull backend image
+      command: docker pull {{ docker_user }}/cravecart-backend:{{ commit_sha }}
+
+    - name: Pull frontend image
+      command: docker pull {{ docker_user }}/cravecart-frontend:{{ commit_sha }}
+
+    - name: Restart containers
+      shell: |
+        cd /home/ubuntu/CraveCart
+        docker-compose down
+        docker-compose up -d

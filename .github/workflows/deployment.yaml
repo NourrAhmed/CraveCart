@@ -19,6 +19,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8   
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -26,7 +31,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # Download PEM file and set as env var
+      # Download PEM file
       - name: Download PEM
         uses: actions/download-artifact@v4
         with:
@@ -35,11 +40,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Export PEM as env var
+      - name: Export PEM as file
         run: |
-          echo "PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-          cat CraveCartKey.pem >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo "${{ secrets.EC2_PEM_KEY }}" > CraveCartKey.pem
           chmod 600 CraveCartKey.pem
 
       # Download Terraform outputs
@@ -72,26 +75,21 @@ jobs:
             echo "TARGET_IP=${{ env.BLUE_IP }}" >> $GITHUB_ENV
           fi
 
-      - name: Deploy to inactive environment
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ env.TARGET_IP }}
-          username: ubuntu
-          key: ${{ env.PRIVATE_KEY }}
-          envs: GITHUB_SHA
-          script: |
-            cd /home/ubuntu/CraveCart || cd /root/CraveCart
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
 
-           
-            git config --global --add safe.directory $(pwd)
-            git fetch --all
-            git reset --hard origin/main
-            git pull
-            docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-backend:${GITHUB_SHA}
-            docker pull ${{ secrets.DOCKER_USERNAME }}/cravecart-frontend:${GITHUB_SHA}
-            docker-compose down
-            docker-compose up -d
-          debug: true
+      - name: Create inventory file
+        run: |
+          echo "[target]" > ansible/inventory.ini
+          echo "${{ env.TARGET_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=CraveCartKey.pem" >> ansible/inventory.ini
+
+      - name: Run Ansible Playbook
+        run: |
+         ansible-playbook -i ansible/inventory.ini ansible/playbook/deploy.yaml \
+         --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
+
 
       - name: Switch traffic to new environment
         run: |
