@@ -1,22 +1,17 @@
-name: Deploy on EC2 (Blue-Green)
+name: Deploy Infrastructure with Terraform
 
-on:
-  workflow_run:
-    workflows: ["Deploy Infrastructure with Terraform"]
-    types:
-      - completed
-
-permissions:
-  actions: read
-  contents: read
+on: 
+  push:
+    branches:
+      - main
 
 jobs:
-  deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  terraform:
+    name: Terraform Apply
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Terraform
@@ -31,71 +26,28 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # Download PEM file and set as env var
-      - name: Download PEM
-        uses: actions/download-artifact@v4
+      - name: Terraform Init
+        run: cd Infrastructure && terraform init
+
+      - name: Terraform Plan
+        run: cd Infrastructure && terraform plan -out=tfplan 
+
+      - name: Terraform Apply
+        run: cd Infrastructure && terraform apply -auto-approve tfplan 
+
+      - name: Capture outputs
+        run: terraform -chdir=Infrastructure/ output -json > tf-outputs.json
+
+      - name: Upload PEM artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ec2-ssh-pem
-          path: .
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          path: Infrastructure/CraveCartKey.pem
+          if-no-files-found: error
+          retention-days: 1
 
-      - name: Export PEM as env var
-        run: |
-          echo "PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-          cat CraveCartKey.pem >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          chmod 600 CraveCartKey.pem
-
-      # Download Terraform outputs
-      - name: Download Terraform outputs
-        uses: actions/download-artifact@v4
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
         with:
           name: tf-outputs
-          path: .
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Parse outputs
-        id: outputs
-        run: |
-          BLUE_IP=$(jq -r .blue_ip.value tf-outputs.json)
-          GREEN_IP=$(jq -r .green_ip.value tf-outputs.json)
-          ACTIVE=$(jq -r .active_env.value tf-outputs.json)
-
-          echo "BLUE_IP=$BLUE_IP" >> $GITHUB_ENV
-          echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
-          echo "ACTIVE=$ACTIVE" >> $GITHUB_ENV
-
-      - name: Determine target environment
-        run: |
-          if [ "${{ env.ACTIVE }}" = "blue" ]; then
-            echo "TARGET_ENV=green" >> $GITHUB_ENV
-            echo "TARGET_IP=${{ env.GREEN_IP }}" >> $GITHUB_ENV
-          else
-            echo "TARGET_ENV=blue" >> $GITHUB_ENV
-            echo "TARGET_IP=${{ env.BLUE_IP }}" >> $GITHUB_ENV
-          fi
-
-      - name: Install Ansible
-        run: |
-          sudo apt update
-          sudo apt install -y ansible
-
-      - name: Create inventory file
-        run: |
-          echo "[target]" > ansible/inventory.ini
-          echo "${{ env.TARGET_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=CraveCartKey.pem" >> ansible/inventory.ini
-
-      - name: Run Ansible Playbook
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"   
-        run: |
-          ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yaml \
-          --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
-
-      - name: Switch traffic to new environment
-        run: |
-          cd Infrastructure
-          terraform init -input=false
-          terraform apply -auto-approve -var="active_env=${{ env.TARGET_ENV }}"
+          path: tf-outputs.json
