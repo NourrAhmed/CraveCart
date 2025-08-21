@@ -87,7 +87,7 @@ jobs:
 
       - name: Run Ansible Playbook
         run: |
-         ansible-playbook -i ansible/inventory.ini ansible/playbook/deploy.yaml \
+         ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yaml \
          --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
 
 
