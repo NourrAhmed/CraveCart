@@ -11,7 +11,7 @@
 
     - name: Clone or update repo
       git:
-        repo: "https://github.com/nourahmed/CraveCart.git"
+        repo: "https://github.com/NourrAhmed/CraveCart.git"
         dest: /home/ubuntu/CraveCart
         version: main
         force: yes
