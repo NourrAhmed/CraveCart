@@ -86,9 +86,12 @@ jobs:
           echo "${{ env.TARGET_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=CraveCartKey.pem" >> ansible/inventory.ini
 
       - name: Run Ansible Playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
-         ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yaml \
-         --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
+          ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yaml \
+          --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
+
 
 
       - name: Switch traffic to new environment
