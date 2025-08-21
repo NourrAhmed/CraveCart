@@ -31,13 +31,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      - name: Export PEM as file
-        run: |
-         cat << 'EOF' > CraveCartKey.pem
-         ${{ secrets.EC2_PEM_KEY }}
-         EOF
-         chmod 600 CraveCartKey.pem
+      # Download PEM file and set as env var
+      - name: Download PEM
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-ssh-pem
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
+      - name: Export PEM as env var
+        run: |
+          echo "PRIVATE_KEY<<EOF" >> $GITHUB_ENV
+          cat CraveCartKey.pem >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          chmod 600 CraveCartKey.pem
 
       # Download Terraform outputs
       - name: Download Terraform outputs
