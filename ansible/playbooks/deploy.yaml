@@ -17,10 +17,10 @@
         force: yes
 
     - name: Pull backend image
-      command: docker pull {{ docker_user }}/cravecart-backend:{{ commit_sha }}
+      command: docker pull {{ docker_user }}/cravecart-backend:latest
 
     - name: Pull frontend image
-      command: docker pull {{ docker_user }}/cravecart-frontend:{{ commit_sha }}
+      command: docker pull {{ docker_user }}/cravecart-frontend:latest
 
     - name: Restart containers
       shell: |
