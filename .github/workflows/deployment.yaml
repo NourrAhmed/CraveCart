@@ -30,6 +30,11 @@ jobs:
         working-directory: Infrastructure
         run: terraform plan
 
+      - name: Terraform Apply
+        working-directory: Infrastructure
+        run: terraform apply -auto-approve
+
+
       - name: Fetch Terraform outputs
         id: tf_outputs
         run: |
