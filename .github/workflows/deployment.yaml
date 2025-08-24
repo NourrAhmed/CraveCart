@@ -33,39 +33,49 @@ jobs:
       - name: Fetch Terraform outputs
         id: tf_outputs
         run: |
+          set -e
+
           curl \
+            --fail \
+            --silent \
             --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
             --header "Content-Type: application/vnd.api+json" \
             "https://app.terraform.io/api/v2/organizations/CraveCart/workspaces/CraveCart/current-state-version?include=outputs" \
             -o state.json
 
-          BLUE_IP=$(jq -r '.included[] | select(.attributes.name=="blue_ip") | .attributes.value' state.json)
-          GREEN_IP=$(jq -r '.included[] | select(.attributes.name=="green_ip") | .attributes.value' state.json)
-          ACTIVE=$(jq -r '.included[] | select(.attributes.name=="active_env") | .attributes.value' state.json)
-          PEM=$(jq -r '.included[] | select(.attributes.name=="pemFile") | .attributes.value' state.json)
+          echo "Terraform Cloud response:"
+          cat state.json | jq .
+
+          BLUE_IP=$(jq -r '.included[]? | select(.attributes.name=="blue_ip") | .attributes.value' state.json || true)
+          GREEN_IP=$(jq -r '.included[]? | select(.attributes.name=="green_ip") | .attributes.value' state.json || true)
+          ACTIVE=$(jq -r '.included[]? | select(.attributes.name=="active_env") | .attributes.value' state.json || true)
+          PEM=$(jq -r '.included[]? | select(.attributes.name=="pemFile") | .attributes.value' state.json || true)
 
           echo "BLUE_IP=$BLUE_IP" >> $GITHUB_ENV
           echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
           echo "ACTIVE=$ACTIVE" >> $GITHUB_ENV
 
-          # Fix PEM newlines
-          echo "$PEM" | sed 's/\\n/\n/g' > CraveCartKey.pem
-          chmod 600 CraveCartKey.pem
+          if [ -n "$PEM" ]; then
+            echo "$PEM" | sed 's/\\n/\n/g' > CraveCartKey.pem
+            chmod 600 CraveCartKey.pem
+          else
+            echo "Warning: PEM file output not found"
+          fi
 
       - name: Determine target environment
         run: |
-         echo "Current active environment: ${ACTIVE}"
-         if [ "${ACTIVE}" = "blue" ]; then
-          echo "Switching to green environment"
-          echo "TARGET_ENV=green" >> $GITHUB_ENV
-          echo "TARGET_IP=$GREEN_IP" >> $GITHUB_ENV
-          echo "Target IP: $GREEN_IP"
-         else
-          echo "Switching to blue environment"
-          echo "TARGET_ENV=blue" >> $GITHUB_ENV
-          echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
-          echo "Target IP: $BLUE_IP"
-         fi
+          echo "Current active environment: ${ACTIVE}"
+          if [ "${ACTIVE}" = "blue" ]; then
+            echo "Switching to green environment"
+            echo "TARGET_ENV=green" >> $GITHUB_ENV
+            echo "TARGET_IP=$GREEN_IP" >> $GITHUB_ENV
+            echo "Target IP: $GREEN_IP"
+          else
+            echo "Switching to blue environment"
+            echo "TARGET_ENV=blue" >> $GITHUB_ENV
+            echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
+            echo "Target IP: $BLUE_IP"
+          fi
 
       - name: Install Ansible
         run: |
