@@ -1,0 +1,36 @@
+name: Deploy Infrastructure with Terraform
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Notify Terraform Cloud
+        run: echo "Pushing to main — Terraform Cloud will handle plan/apply."
+
+      # Optional: fetch outputs after apply is done
+      - name: Fetch Terraform outputs
+        run: |
+          curl \
+            --silent \
+            --fail \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            "https://app.terraform.io/api/v2/organizations/CraveCart/workspaces/CraveCart/current-state-version?include=outputs" \
+            -o state.json
+
+          jq '.included[] | {name: .attributes.name, value: .attributes.value}' state.json > tf-outputs.json
+
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: tf-outputs
+          path: tf-outputs.json

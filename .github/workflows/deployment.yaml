@@ -1,9 +1,10 @@
 name: Deploy on EC2 (Blue-Green)
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Deploy Infrastructure with Terraform"]
+    types:
+      - completed
 
 permissions:
   actions: read
@@ -11,70 +12,69 @@ permissions:
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Terraform
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_version: 1.9.8   
 
-      - name: Terraform Init
-        working-directory: Infrastructure
-        run: terraform init
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
 
-      - name: Terraform Plan (remote execution)
-        working-directory: Infrastructure
-        run: terraform plan
+      # Download PEM file and set as env var
+      - name: Download PEM
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-ssh-pem
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Fetch Terraform outputs
-        id: tf_outputs
+      - name: Export PEM as env var
         run: |
-          set -e
+          echo "PRIVATE_KEY<<EOF" >> $GITHUB_ENV
+          cat CraveCartKey.pem >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          chmod 600 CraveCartKey.pem
 
-          curl \
-            --fail \
-            --silent \
-            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            --header "Content-Type: application/vnd.api+json" \
-            "https://app.terraform.io/api/v2/organizations/CraveCart/workspaces/CraveCart/current-state-version?include=outputs" \
-            -o state.json
+      # Download Terraform outputs
+      - name: Download Terraform outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: tf-outputs
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
 
-          echo "Terraform Cloud response:"
-          cat state.json | jq .
-
-          BLUE_IP=$(jq -r '.included[]? | select(.attributes.name=="blue_ip") | .attributes.value' state.json || true)
-          GREEN_IP=$(jq -r '.included[]? | select(.attributes.name=="green_ip") | .attributes.value' state.json || true)
-          ACTIVE=$(jq -r '.included[]? | select(.attributes.name=="active_env") | .attributes.value' state.json || true)
-          PEM=$(jq -r '.included[]? | select(.attributes.name=="pemFile") | .attributes.value' state.json || true)
+      - name: Parse outputs
+        id: outputs
+        run: |
+          BLUE_IP=$(jq -r .blue_ip.value tf-outputs.json)
+          GREEN_IP=$(jq -r .green_ip.value tf-outputs.json)
+          ACTIVE=$(jq -r .active_env.value tf-outputs.json)
 
           echo "BLUE_IP=$BLUE_IP" >> $GITHUB_ENV
           echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
           echo "ACTIVE=$ACTIVE" >> $GITHUB_ENV
 
-          if [ -n "$PEM" ]; then
-            echo "$PEM" | sed 's/\\n/\n/g' > CraveCartKey.pem
-            chmod 600 CraveCartKey.pem
-          else
-            echo "Warning: PEM file output not found"
-          fi
-
       - name: Determine target environment
         run: |
-          echo "Current active environment: ${ACTIVE}"
-          if [ "${ACTIVE}" = "blue" ]; then
-            echo "Switching to green environment"
+          if [ "${{ env.ACTIVE }}" = "blue" ]; then
             echo "TARGET_ENV=green" >> $GITHUB_ENV
-            echo "TARGET_IP=$GREEN_IP" >> $GITHUB_ENV
-            echo "Target IP: $GREEN_IP"
+            echo "TARGET_IP=${{ env.GREEN_IP }}" >> $GITHUB_ENV
           else
-            echo "Switching to blue environment"
             echo "TARGET_ENV=blue" >> $GITHUB_ENV
-            echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
-            echo "Target IP: $BLUE_IP"
+            echo "TARGET_IP=${{ env.BLUE_IP }}" >> $GITHUB_ENV
           fi
 
       - name: Install Ansible
@@ -93,3 +93,26 @@ jobs:
         run: |
           ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yaml \
           --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
+
+      - name: Switch traffic to new environment in Terraform Cloud
+        run: |
+          curl \
+            --fail \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --request PATCH \
+            --data @- \
+            https://app.terraform.io/api/v2/workspaces/CraveCart/vars/active_env <<EOF
+          {
+            "data": {
+              "id": "active_env",
+              "type": "vars",
+              "attributes": {
+                "value": "${{ env.TARGET_ENV }}",
+                "category": "terraform",
+                "hcl": false,
+                "sensitive": false
+              }
+            }
+          }
+          EOF
