@@ -7,27 +7,44 @@ on:
 
 jobs:
   terraform:
+    name: Terraform Apply
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Notify Terraform Cloud
-        run: echo "Pushing to main — Terraform Cloud will handle plan/apply."
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8   
 
-      # Optional: fetch outputs after apply is done
-      - name: Fetch Terraform outputs
-        run: |
-          curl \
-            --silent \
-            --fail \
-            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            --header "Content-Type: application/vnd.api+json" \
-            "https://app.terraform.io/api/v2/organizations/CraveCart/workspaces/CraveCart/current-state-version?include=outputs" \
-            -o state.json
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
 
-          jq '.included[] | {name: .attributes.name, value: .attributes.value}' state.json > tf-outputs.json
+      - name: Terraform Init
+        run: cd Infrastructure && terraform init
+
+      - name: Terraform Plan
+        run: cd Infrastructure && terraform plan -out=tfplan 
+
+      - name: Terraform Apply
+        run: cd Infrastructure && terraform apply -auto-approve tfplan 
+
+      - name: Capture outputs
+        run: terraform -chdir=Infrastructure/ output -json > tf-outputs.json
+
+      - name: Upload PEM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ec2-ssh-pem
+          path: Infrastructure/CraveCartKey.pem
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload outputs
         uses: actions/upload-artifact@v4

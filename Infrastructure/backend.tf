@@ -7,12 +7,12 @@
 #    encrypt        = true
 #  }
 #}
-terraform {
-  backend "remote" {
-    organization = "CraveCart"
+#terraform {
+#  backend "remote" {
+#    organization = "CraveCart"
 
-    workspaces {
-      name = "CraveCart"
-    }
-  }
-}
+#    workspaces {
+#      name = "CraveCart"
+#    }
+#  }
+#}
