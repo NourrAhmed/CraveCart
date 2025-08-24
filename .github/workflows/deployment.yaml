@@ -1,10 +1,9 @@
 name: Deploy on EC2 (Blue-Green)
 
 on:
-  workflow_run:
-    workflows: ["Deploy Infrastructure with Terraform"]
-    types:
-      - completed
+  push:
+    branches:
+      - main
 
 permissions:
   actions: read
@@ -12,60 +11,33 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.8   
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
-
-      # Download PEM file and set as env var
-      - name: Download PEM
-        uses: actions/download-artifact@v4
-        with:
-          name: ec2-ssh-pem
-          path: .
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Export PEM as env var
+     
+      - name: Fetch Terraform outputs
+        id: tf_outputs
         run: |
-          echo "PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-          cat CraveCartKey.pem >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          chmod 600 CraveCartKey.pem
+          curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            "https://app.terraform.io/api/v2/organizations/CraveCart/workspaces/CraveCart/current-state-version?include=outputs" \
+            -o state.json
 
-      # Download Terraform outputs
-      - name: Download Terraform outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: tf-outputs
-          path: .
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Parse outputs
-        id: outputs
-        run: |
-          BLUE_IP=$(jq -r .blue_ip.value tf-outputs.json)
-          GREEN_IP=$(jq -r .green_ip.value tf-outputs.json)
-          ACTIVE=$(jq -r .active_env.value tf-outputs.json)
+          BLUE_IP=$(jq -r '.included[] | select(.attributes.name=="blue_ip") | .attributes.value' state.json)
+          GREEN_IP=$(jq -r '.included[] | select(.attributes.name=="green_ip") | .attributes.value' state.json)
+          ACTIVE=$(jq -r '.included[] | select(.attributes.name=="active_env") | .attributes.value' state.json)
+          PEM=$(jq -r '.included[] | select(.attributes.name=="pemFile") | .attributes.value' state.json)
 
           echo "BLUE_IP=$BLUE_IP" >> $GITHUB_ENV
           echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
           echo "ACTIVE=$ACTIVE" >> $GITHUB_ENV
+
+          echo "$PEM" > CraveCartKey.pem
+          chmod 600 CraveCartKey.pem
 
       - name: Determine target environment
         run: |
@@ -89,13 +61,22 @@ jobs:
 
       - name: Run Ansible Playbook
         env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"   
+          ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
           ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yaml \
-          --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
+            --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
 
-      - name: Switch traffic to new environment
+      - name: Switch Traffic in Terraform Cloud
         run: |
-          cd Infrastructure
-          terraform init -input=false
-          terraform apply -auto-approve -var="active_env=${{ env.TARGET_ENV }}"
+          curl -s \
+            --header "Authorization: Bearer $TF_API_TOKEN" \
+            --header "Content-Type: application/vnd.api+json" \
+            https://app.terraform.io/api/v2/workspaces/<ORG>/<WORKSPACE>/vars \
+          | jq -r '.data[] | select(.attributes.key=="active_env") | .id' \
+          | xargs -I VAR_ID curl -s \
+              --request PATCH \
+              --header "Authorization: Bearer $TF_API_TOKEN" \
+              --header "Content-Type: application/vnd.api+json" \
+              --data '{"data":{"id":"VAR_ID","type":"vars","attributes":{"value":"green","hcl":false,"sensitive":false}}}' \
+              https://app.terraform.io/api/v2/workspaces/<ORG>/<WORKSPACE>/vars/VAR_ID
+
