@@ -17,7 +17,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-     
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan (remote execution)
+        run: terraform plan
+
       - name: Fetch Terraform outputs
         id: tf_outputs
         run: |
@@ -36,28 +46,30 @@ jobs:
           echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
           echo "ACTIVE=$ACTIVE" >> $GITHUB_ENV
 
-          echo "$PEM" > CraveCartKey.pem
+          # PEM content often contains newlines, wrap it in quotes properly
+          echo "$PEM" | sed 's/\\n/\n/g' > CraveCartKey.pem
           chmod 600 CraveCartKey.pem
 
       - name: Determine target environment
         run: |
-          if [ "${{ env.ACTIVE }}" = "blue" ]; then
+          if [ "${ACTIVE}" = "blue" ]; then
             echo "TARGET_ENV=green" >> $GITHUB_ENV
-            echo "TARGET_IP=${{ env.GREEN_IP }}" >> $GITHUB_ENV
+            echo "TARGET_IP=$GREEN_IP" >> $GITHUB_ENV
           else
             echo "TARGET_ENV=blue" >> $GITHUB_ENV
-            echo "TARGET_IP=${{ env.BLUE_IP }}" >> $GITHUB_ENV
+            echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
           fi
 
       - name: Install Ansible
         run: |
           sudo apt update
-          sudo apt install -y ansible
+          sudo apt install -y ansible jq
 
       - name: Create inventory file
         run: |
+          mkdir -p ansible
           echo "[target]" > ansible/inventory.ini
-          echo "${{ env.TARGET_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=CraveCartKey.pem" >> ansible/inventory.ini
+          echo "$TARGET_IP ansible_user=ubuntu ansible_ssh_private_key_file=CraveCartKey.pem" >> ansible/inventory.ini
 
       - name: Run Ansible Playbook
         env:
@@ -68,15 +80,15 @@ jobs:
 
       - name: Switch Traffic in Terraform Cloud
         run: |
-          curl -s \
-            --header "Authorization: Bearer $TF_API_TOKEN" \
+          VAR_ID=$(curl -s \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
             --header "Content-Type: application/vnd.api+json" \
-            https://app.terraform.io/api/v2/workspaces/<ORG>/<WORKSPACE>/vars \
-          | jq -r '.data[] | select(.attributes.key=="active_env") | .id' \
-          | xargs -I VAR_ID curl -s \
-              --request PATCH \
-              --header "Authorization: Bearer $TF_API_TOKEN" \
-              --header "Content-Type: application/vnd.api+json" \
-              --data '{"data":{"id":"VAR_ID","type":"vars","attributes":{"value":"green","hcl":false,"sensitive":false}}}' \
-              https://app.terraform.io/api/v2/workspaces/<ORG>/<WORKSPACE>/vars/VAR_ID
+            "https://app.terraform.io/api/v2/workspaces/CraveCart/vars" \
+          | jq -r '.data[] | select(.attributes.key=="active_env") | .id')
 
+          curl -s \
+            --request PATCH \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --data '{"data":{"id":"'"$VAR_ID"'","type":"vars","attributes":{"value":"'"$TARGET_ENV"'","hcl":false,"sensitive":false}}}' \
+            "https://app.terraform.io/api/v2/workspaces/CraveCart/vars/$VAR_ID"
