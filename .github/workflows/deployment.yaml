@@ -23,9 +23,11 @@ jobs:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
       - name: Terraform Init
+        working-directory: Infrastructure
         run: terraform init
 
       - name: Terraform Plan (remote execution)
+        working-directory: Infrastructure
         run: terraform plan
 
       - name: Fetch Terraform outputs
@@ -46,7 +48,7 @@ jobs:
           echo "GREEN_IP=$GREEN_IP" >> $GITHUB_ENV
           echo "ACTIVE=$ACTIVE" >> $GITHUB_ENV
 
-          # PEM content often contains newlines, wrap it in quotes properly
+          # Fix PEM newlines
           echo "$PEM" | sed 's/\\n/\n/g' > CraveCartKey.pem
           chmod 600 CraveCartKey.pem
 
@@ -58,7 +60,6 @@ jobs:
           else
             echo "TARGET_ENV=blue" >> $GITHUB_ENV
             echo "TARGET_IP=$BLUE_IP" >> $GITHUB_ENV
-          fi
 
       - name: Install Ansible
         run: |
@@ -68,27 +69,3 @@ jobs:
       - name: Create inventory file
         run: |
           mkdir -p ansible
-          echo "[target]" > ansible/inventory.ini
-          echo "$TARGET_IP ansible_user=ubuntu ansible_ssh_private_key_file=CraveCartKey.pem" >> ansible/inventory.ini
-
-      - name: Run Ansible Playbook
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
-        run: |
-          ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yaml \
-            --extra-vars "commit_sha=${GITHUB_SHA} docker_user=${{ secrets.DOCKER_USERNAME }}"
-
-      - name: Switch Traffic in Terraform Cloud
-        run: |
-          VAR_ID=$(curl -s \
-            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            --header "Content-Type: application/vnd.api+json" \
-            "https://app.terraform.io/api/v2/workspaces/CraveCart/vars" \
-          | jq -r '.data[] | select(.attributes.key=="active_env") | .id')
-
-          curl -s \
-            --request PATCH \
-            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            --header "Content-Type: application/vnd.api+json" \
-            --data '{"data":{"id":"'"$VAR_ID"'","type":"vars","attributes":{"value":"'"$TARGET_ENV"'","hcl":false,"sensitive":false}}}' \
-            "https://app.terraform.io/api/v2/workspaces/CraveCart/vars/$VAR_ID"
