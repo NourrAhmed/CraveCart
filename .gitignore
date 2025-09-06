@@ -58,3 +58,14 @@ coverage/
 # System Files
 .DS_Store
 Thumbs.db 
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.tfstate.lock.info
+
+
+ansible/inventory.ini

@@ -7,3 +7,9 @@ variable "instance_ami" {
 variable "instance_type" {
   default = "t3.micro"
 }
+variable "active_env" {
+  description = "Active environment for blue-green deployment"
+  type        = string
+  default = "blue"
+}
+
