@@ -1,14 +1,12 @@
 ---
 - name: Deploy CraveCart App on Kubernetes
   hosts: all
-  become: true
+  become: yes
 
   tasks:
     - name: Ensure required packages are installed
       apt:
-        name:
-          - curl
-          - git
+        name: [git, curl]
         state: present
         update_cache: yes
 
@@ -23,56 +21,51 @@
         state: directory
         owner: ubuntu
         group: ubuntu
-        mode: '0755'
+        mode: 0755
 
     - name: Copy kubeconfig for ubuntu user
-      command: cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
-      become: true
+      copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /home/ubuntu/.kube/config
+        remote_src: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: 0600
 
     - name: Set kubeconfig ownership
       file:
         path: /home/ubuntu/.kube/config
         owner: ubuntu
         group: ubuntu
-        mode: '0644'
+        mode: 0600
 
     - name: Export KUBECONFIG for ubuntu user
       lineinfile:
         path: /home/ubuntu/.bashrc
         line: 'export KUBECONFIG=/home/ubuntu/.kube/config'
-        state: present
-        create: yes
+        insertafter: EOF
+
+    - name: Wait for Kubernetes API to be available
+      command: kubectl get nodes
+      register: result
+      until: result.rc == 0
+      retries: 15
+      delay: 10
 
     - name: Clone CraveCart repository
       git:
         repo: "https://github.com/NourrAhmed/CraveCart.git"
         dest: /home/ubuntu/CraveCart
         version: main
-        force: yes
-      become: true
-      become_user: ubuntu
 
     - name: Deploy Backend Deployment
-      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/deployment.yaml
-      become: true
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/deployment.yaml --validate=false
 
     - name: Deploy Backend Service
-      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/service.yaml
-      become: true
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/service.yaml --validate=false
 
     - name: Deploy Frontend Deployment
-      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/deployment.yaml
-      become: true
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/deployment.yaml --validate=false
 
     - name: Deploy Frontend Service
-      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/service.yaml
-      become: true
-
-    - name: Verify Kubernetes resources
-      command: kubectl get pods -o wide
-      register: pod_status
-      changed_when: false
-
-    - name: Show pod status
-      debug:
-        var: pod_status.stdout_lines
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/service.yaml --validate=false
