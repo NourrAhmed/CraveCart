@@ -52,16 +52,20 @@
       become: true
       become_user: ubuntu
 
-    - name: Deploy Backend
-      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend-deployment.yaml
+    - name: Deploy Backend Deployment
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/deployment.yaml
       become: true
 
-    - name: Deploy Frontend
-      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend-deployment.yaml
+    - name: Deploy Backend Service
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/service.yaml
       become: true
 
-    - name: Deploy Services
-      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/services.yaml
+    - name: Deploy Frontend Deployment
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/deployment.yaml
+      become: true
+
+    - name: Deploy Frontend Service
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/service.yaml
       become: true
 
     - name: Verify Kubernetes resources
