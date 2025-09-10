@@ -49,12 +49,26 @@
       command: kubectl get nodes
       register: result
       until: result.rc == 0
-      retries: 15
+      retries: 20
       delay: 10
+
+    - name: Wait until all nodes are Ready
+      command: kubectl get nodes --no-headers
+      register: node_status
+      until: "'Ready' in node_status.stdout"
+      retries: 20
+      delay: 15
+
+    - name: Wait until kube-system pods are running
+      command: kubectl get pods -n kube-system --no-headers
+      register: pod_status
+      until: pod_status.stdout_lines | select("search", "Running") | list | length > 3
+      retries: 20
+      delay: 15
 
     - name: Clone CraveCart repository
       git:
-        repo: "https://github.com/NourrAhmed/CraveCart.git"
+        repo: "https://github.com/yourusername/CraveCart.git"
         dest: /home/ubuntu/CraveCart
         version: main
 
@@ -64,8 +78,22 @@
     - name: Deploy Backend Service
       command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/service.yaml --validate=false
 
+    - name: Wait for Backend Pods to be Running
+      shell: kubectl get pods -l app=backend -o jsonpath='{.items[*].status.phase}'
+      register: backend_pods
+      until: backend_pods.stdout.find("Running") != -1
+      retries: 20
+      delay: 15
+
     - name: Deploy Frontend Deployment
       command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/deployment.yaml --validate=false
 
     - name: Deploy Frontend Service
       command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/service.yaml --validate=false
+
+    - name: Wait for Frontend Pods to be Running
+      shell: kubectl get pods -l app=frontend -o jsonpath='{.items[*].status.phase}'
+      register: frontend_pods
+      until: frontend_pods.stdout.find("Running") != -1
+      retries: 20
+      delay: 15
