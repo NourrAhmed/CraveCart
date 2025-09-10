@@ -10,10 +10,19 @@
         state: present
         update_cache: yes
 
-    - name: Install k3s
-      shell: curl -sfL https://get.k3s.io | sh -
+    - name: Install k3s with proper permissions
+      shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
       args:
         creates: /usr/local/bin/k3s
+
+    - name: Wait for k3s service to be ready
+      systemd:
+        name: k3s
+        state: started
+      register: k3s_service
+      until: k3s_service.status.ActiveState == "active"
+      retries: 10
+      delay: 5
 
     - name: Create .kube directory
       file:
@@ -32,11 +41,6 @@
         group: ubuntu
         mode: 0600
 
-    - name: Add KUBECONFIG to bashrc
-      lineinfile:
-        path: /home/ubuntu/.bashrc
-        line: 'export KUBECONFIG=/home/ubuntu/.kube/config'
-
     - name: Wait for k3s to be ready
       command: kubectl get nodes
       register: result
@@ -44,6 +48,8 @@
       retries: 10
       delay: 10
       become_user: ubuntu
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
 
     - name: Clone CraveCart repository
       git:
@@ -57,12 +63,16 @@
         kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/deployment.yaml
         kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/service.yaml
       become_user: ubuntu
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
 
     - name: Deploy frontend
       shell: |
         kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/deployment.yaml
         kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/service.yaml
       become_user: ubuntu
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
 
     - name: Wait for deployments
       command: kubectl get pods
@@ -71,11 +81,15 @@
       retries: 15
       delay: 10
       become_user: ubuntu
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
 
     - name: Show final status
       command: kubectl get pods,svc
       become_user: ubuntu
       register: status
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
 
     - debug:
         var: status.stdout_lines
