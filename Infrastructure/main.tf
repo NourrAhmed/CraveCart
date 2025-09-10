@@ -136,17 +136,8 @@ resource "aws_launch_template" "blue" {
   user_data = base64encode(<<-EOF
                #!/bin/bash
                sudo apt update -y
-               sudo apt install docker.io -y
-               sudo apt install docker-compose -y
-               sudo apt install git -y
-               sudo systemctl start docker
-               sudo usermod -aG docker ubuntu
-               sleep 30
-
-               cd /home/ubuntu
-               git clone https://github.com/NourrAhmed/CraveCart.git 
-               cd CraveCart
-               sudo docker-compose up -d
+               sudo apt install -y curl git ansible
+               sudo hostnamectl set-hostname cravecart-blue
                EOF
   )
 }
@@ -161,20 +152,12 @@ resource "aws_launch_template" "green" {
   user_data = base64encode(<<-EOF
                #!/bin/bash
                sudo apt update -y
-               sudo apt install docker.io -y
-               sudo apt install docker-compose -y
-               sudo apt install git -y
-               sudo systemctl start docker
-               sudo usermod -aG docker ubuntu
-               sleep 30
-
-               cd /home/ubuntu
-               git clone https://github.com/NourrAhmed/CraveCart.git 
-               cd CraveCart
-               sudo docker-compose up -d
+               sudo apt install -y curl git ansible
+               sudo hostnamectl set-hostname cravecart-green
                EOF
   )
 }
+
 
 # -----------------------------------------
 # AUTO SCALING GROUPS

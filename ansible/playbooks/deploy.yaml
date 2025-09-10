@@ -1,29 +1,49 @@
 ---
-- name: Deploy CraveCart App
+- name: Deploy CraveCart App on Kubernetes
   hosts: target
   become: true
+
   tasks:
-    - name: Ensure Git is installed
+    - name: Ensure required packages are installed
       apt:
-        name: git
+        name: [curl, git]
         state: present
         update_cache: yes
 
-    - name: Clone or update repo
-      git:
-        repo: "https://github.com/NourrAhmed/CraveCart.git"
-        dest: /home/ubuntu/CraveCart
-        version: main
-        force: yes
-
-    - name: Pull backend image
-      command: docker pull {{ docker_user }}/cravecart-backend:latest
-
-    - name: Pull frontend image
-      command: docker pull {{ docker_user }}/cravecart-frontend:latest
-
-    - name: Restart containers
+    - name: Install k3s (lightweight Kubernetes)
       shell: |
-        cd /home/ubuntu/CraveCart
-        docker-compose down
-        docker-compose up -d
+        curl -sfL https://get.k3s.io | sh -
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Ensure kubeconfig is available for ubuntu user
+      command: cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
+      become: true
+      become_user: root
+
+    - name: Fix kubeconfig permissions
+      file:
+        path: /home/ubuntu/.kube/config
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+
+    - name: Create manifests directory
+      file:
+        path: /home/ubuntu/manifests
+        state: directory
+
+    - name: Copy Kubernetes manifests
+      copy:
+        src: ../../k8s/
+        dest: /home/ubuntu/manifests/
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+
+    - name: Apply Kubernetes manifests
+      become_user: ubuntu
+      shell: |
+        export KUBECONFIG=/home/ubuntu/.kube/config
+        kubectl apply -f /home/ubuntu/manifests/backend/
+        kubectl apply -f /home/ubuntu/manifests/frontend/
