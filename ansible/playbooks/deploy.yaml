@@ -1,49 +1,56 @@
 ---
 - name: Deploy CraveCart App on Kubernetes
-  hosts: target
+  hosts: all
   become: true
 
   tasks:
     - name: Ensure required packages are installed
       apt:
-        name: [curl, git]
+        name:
+          - curl
+          - git
         state: present
         update_cache: yes
 
     - name: Install k3s (lightweight Kubernetes)
-      shell: |
-        curl -sfL https://get.k3s.io | sh -
+      shell: curl -sfL https://get.k3s.io | sh -
       args:
         creates: /usr/local/bin/k3s
 
-    - name: Ensure kubeconfig is available for ubuntu user
+    - name: Ensure .kube directory exists for ubuntu user
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy kubeconfig for ubuntu user
       command: cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
       become: true
-      become_user: root
 
-    - name: Fix kubeconfig permissions
+    - name: Set kubeconfig ownership
       file:
         path: /home/ubuntu/.kube/config
         owner: ubuntu
         group: ubuntu
-        mode: '0600'
-
-    - name: Create manifests directory
-      file:
-        path: /home/ubuntu/manifests
-        state: directory
-
-    - name: Copy Kubernetes manifests
-      copy:
-        src: ../../k8s/
-        dest: /home/ubuntu/manifests/
-        owner: ubuntu
-        group: ubuntu
         mode: '0644'
 
-    - name: Apply Kubernetes manifests
-      become_user: ubuntu
-      shell: |
-        export KUBECONFIG=/home/ubuntu/.kube/config
-        kubectl apply -f /home/ubuntu/manifests/backend/
-        kubectl apply -f /home/ubuntu/manifests/frontend/
+    - name: Export KUBECONFIG for ubuntu user
+      lineinfile:
+        path: /home/ubuntu/.bashrc
+        line: 'export KUBECONFIG=/home/ubuntu/.kube/config'
+        state: present
+        create: yes
+
+    - name: Deploy Backend
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend-deployment.yaml
+      become: true
+
+    - name: Deploy Frontend
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend-deployment.yaml
+      become: true
+
+    - name: Deploy Services
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/services.yaml
+      become: true
