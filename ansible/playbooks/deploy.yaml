@@ -43,6 +43,15 @@
         state: present
         create: yes
 
+    - name: Clone CraveCart repository
+      git:
+        repo: "https://github.com/NourrAhmed/CraveCart.git"
+        dest: /home/ubuntu/CraveCart
+        version: main
+        force: yes
+      become: true
+      become_user: ubuntu
+
     - name: Deploy Backend
       command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend-deployment.yaml
       become: true
@@ -54,3 +63,12 @@
     - name: Deploy Services
       command: kubectl apply -f /home/ubuntu/CraveCart/k8s/services.yaml
       become: true
+
+    - name: Verify Kubernetes resources
+      command: kubectl get pods -o wide
+      register: pod_status
+      changed_when: false
+
+    - name: Show pod status
+      debug:
+        var: pod_status.stdout_lines
