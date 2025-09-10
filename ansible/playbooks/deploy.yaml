@@ -67,10 +67,13 @@
       delay: 15
 
     - name: Clone CraveCart repository
-      git:
-        repo: "https://github.com/yourusername/CraveCart.git"
-        dest: /home/ubuntu/CraveCart
-        version: main
+      ansible.builtin.git:
+       repo: "https://github.com/NourrAhmed/CraveCart.git"
+       dest: "/home/ubuntu/CraveCart"
+       version: "main"
+       depth: 1
+       force: yes
+
 
     - name: Deploy Backend Deployment
       command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/deployment.yaml --validate=false
