@@ -138,6 +138,23 @@ resource "aws_launch_template" "blue" {
                sudo apt update -y
                sudo apt install -y curl git ansible
                sudo hostnamectl set-hostname cravecart-blue
+               
+               # Install k3s with proper permissions
+               curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
+               
+               # Setup kubectl for ubuntu user
+               sudo mkdir -p /home/ubuntu/.kube
+               sudo cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
+               sudo chown -R ubuntu:ubuntu /home/ubuntu/.kube
+               sudo chmod 600 /home/ubuntu/.kube/config
+               
+               # Wait for k3s to be ready
+               until sudo kubectl get nodes > /dev/null 2>&1; do
+                 echo "Waiting for k3s to be ready..."
+                 sleep 5
+               done
+               
+               echo "K3s installation completed successfully"
                EOF
   )
 }
@@ -154,10 +171,26 @@ resource "aws_launch_template" "green" {
                sudo apt update -y
                sudo apt install -y curl git ansible
                sudo hostnamectl set-hostname cravecart-green
+               
+               # Install k3s with proper permissions
+               curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
+               
+               # Setup kubectl for ubuntu user
+               sudo mkdir -p /home/ubuntu/.kube
+               sudo cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
+               sudo chown -R ubuntu:ubuntu /home/ubuntu/.kube
+               sudo chmod 600 /home/ubuntu/.kube/config
+               
+               # Wait for k3s to be ready
+               until sudo kubectl get nodes > /dev/null 2>&1; do
+                 echo "Waiting for k3s to be ready..."
+                 sleep 5
+               done
+               
+               echo "K3s installation completed successfully"
                EOF
   )
 }
-
 
 # -----------------------------------------
 # AUTO SCALING GROUPS

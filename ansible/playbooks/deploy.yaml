@@ -1,95 +1,37 @@
 ---
-- name: Deploy CraveCart App on Kubernetes
+- name: Deploy CraveCart App
   hosts: all
-  become: yes
-
+  become_user: ubuntu
+  
   tasks:
-    - name: Install required packages
-      apt:
-        name: [git, curl]
-        state: present
-        update_cache: yes
-
-    - name: Install k3s with proper permissions
-      shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
-      args:
-        creates: /usr/local/bin/k3s
-
-    - name: Wait for k3s service to be ready
-      systemd:
-        name: k3s
-        state: started
-      register: k3s_service
-      until: k3s_service.status.ActiveState == "active"
-      retries: 10
-      delay: 5
-
-    - name: Create .kube directory
-      file:
-        path: /home/ubuntu/.kube
-        state: directory
-        owner: ubuntu
-        group: ubuntu
-        mode: 0755
-
-    - name: Copy kubeconfig
-      copy:
-        src: /etc/rancher/k3s/k3s.yaml
-        dest: /home/ubuntu/.kube/config
-        remote_src: yes
-        owner: ubuntu
-        group: ubuntu
-        mode: 0600
-
-    - name: Wait for k3s to be ready
+    - name: Verify k3s is ready
       command: kubectl get nodes
-      register: result
-      until: result.rc == 0
-      retries: 10
-      delay: 10
-      become_user: ubuntu
       environment:
         KUBECONFIG: /home/ubuntu/.kube/config
+      retries: 5
+      delay: 10
 
     - name: Clone CraveCart repository
       git:
         repo: "https://github.com/NourrAhmed/CraveCart.git"
         dest: "/home/ubuntu/CraveCart"
         force: yes
-      become_user: ubuntu
 
     - name: Deploy backend
-      shell: |
-        kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/deployment.yaml
-        kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/service.yaml
-      become_user: ubuntu
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/backend/
       environment:
         KUBECONFIG: /home/ubuntu/.kube/config
 
     - name: Deploy frontend
-      shell: |
-        kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/deployment.yaml
-        kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/service.yaml
-      become_user: ubuntu
+      command: kubectl apply -f /home/ubuntu/CraveCart/k8s/frontend/
       environment:
         KUBECONFIG: /home/ubuntu/.kube/config
 
-    - name: Wait for deployments
-      command: kubectl get pods
-      register: pods
-      until: "'Running' in pods.stdout"
-      retries: 15
-      delay: 10
-      become_user: ubuntu
-      environment:
-        KUBECONFIG: /home/ubuntu/.kube/config
-
-    - name: Show final status
+    - name: Show deployment status
       command: kubectl get pods,svc
-      become_user: ubuntu
-      register: status
       environment:
         KUBECONFIG: /home/ubuntu/.kube/config
+      register: status
 
     - debug:
         var: status.stdout_lines
